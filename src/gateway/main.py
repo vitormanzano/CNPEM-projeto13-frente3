@@ -9,7 +9,7 @@ sys.path.append(str(PASTA_PAI))
 sys.path.append(str(Path(__file__).resolve().parent))
 
 # Importa a função específica do arquivo scanner.py
-from bluetooth.scanner import find_target_address
+from bluetooth.scanner import *
 from bleak import BleakScanner, BleakClient
 
 # Configurações do dispositivo alvo para os testes (suporta variáveis de ambiente)
@@ -29,17 +29,8 @@ async def teste_1_scan_simples() -> None:
     print("=" * 60)
     print("Iniciando varredura por 5 segundos...\n")
 
-    # return_adv=True devolve um dicionário {address: (BLEDevice, AdvertisementData)}
-    devices_dict = await BleakScanner.discover(return_adv=True, timeout=5.0)
-
-    if not devices_dict:
-        print("Nenhum dispositivo BLE encontrado ao alcance.")
-        return
-
-    for address, (dev, adv_data) in devices_dict.items():
-        nome = dev.name or adv_data.local_name or "Desconhecido / Oculto"
-        rssi = adv_data.rssi  # Acedido diretamente a partir de AdvertisementData
-        print(f"Endereço: {address} | Nome: {nome:<25} | RSSI: {rssi} dBm")
+    await find_all_local_devices()
+     
 
 async def teste_2_busca_alternativa(
     target_name: str = TARGET_NAME, target_uuid: str = TARGET_SERVICE_UUID
@@ -111,34 +102,38 @@ async def teste_3_conexao_e_visibilidade(
 
 
 async def main() -> None:
-    """Menu interativo para execução dos testes."""
-    while True:
-        print("\n" + "#" * 50)
-        print("      SUÍTE DE TESTES BLE - DIAGNÓSTICO FRENTE 3")
-        print("#" * 50)
-        print("1. Executar Teste 1: Scan Simples (Verificar MAC/UUIDs)")
-        print("2. Executar Teste 2: Filtrar por Nome/Serviço (Critérios Alternativos)")
-        print("3. Executar Teste 3: Testar Conexão GATT e Visibilidade no celular")
-        print("4. Executar TODOS os testes em sequência")
-        print("0. Sair")
+    await connect_and_monitor_rssi("F1142908-CB92-D7C9-C4E4-03C134ADB6A7")
+    # await find_all_local_devices()  
+    # await connect_device("F1142908-CB92-D7C9-C4E4-03C134ADB6A7")
 
-        opcao = input("\nSelecione uma opção (0-4): ").strip()
-
-        if opcao == "1":
-            await teste_1_scan_simples()
-        elif opcao == "2":
-            await teste_2_busca_alternativa()
-        elif opcao == "3":
-            await teste_3_conexao_e_visibilidade()
-        elif opcao == "4":
-            await teste_1_scan_simples()
-            await teste_2_busca_alternativa()
-            await teste_3_conexao_e_visibilidade()
-        elif opcao == "0":
-            print("\nSaindo do programa de testes.")
-            break
-        else:
-            print("\nOpção inválida. Digite um número de 0 a 4.")
+    # """Menu interativo para execução dos testes."""
+    # while True:
+    #     print("\n" + "#" * 50)
+    #     print("      SUÍTE DE TESTES BLE - DIAGNÓSTICO FRENTE 3")
+    #     print("#" * 50)
+    #     print("1. Executar Teste 1: Scan Simples (Verificar MAC/UUIDs)")
+    #     print("2. Executar Teste 2: Filtrar por Nome/Serviço (Critérios Alternativos)")
+    #     print("3. Executar Teste 3: Testar Conexão GATT e Visibilidade no celular")
+    #     print("4. Executar TODOS os testes em sequência")
+    #     print("0. Sair")
+    #
+    #     opcao = input("\nSelecione uma opção (0-4): ").strip()
+    #
+    #     if opcao == "1":
+    #         await teste_1_scan_simples()
+    #     elif opcao == "2":
+    #         await teste_2_busca_alternativa()
+    #     elif opcao == "3":
+    #         await teste_3_conexao_e_visibilidade()
+    #     elif opcao == "4":
+    #         await teste_1_scan_simples()
+    #         await teste_2_busca_alternativa()
+    #         await teste_3_conexao_e_visibilidade()
+    #     elif opcao == "0":
+    #         print("\nSaindo do programa de testes.")
+    #         break
+    #     else:
+    #         print("\nOpção inválida. Digite um número de 0 a 4.")
 
 
 if __name__ == "__main__":
