@@ -1,0 +1,26 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cnpem_gateway_ble
+    restart: unless-stopped
+
+    # Comunicação direta com a interface de rede do host
+    network_mode: "host"
+
+    # Privilégios necessários para controle dos adaptadores Bluetooth e raw sockets
+    privileged: true
+
+    # Mapeamento do socket D-Bus do sistema operacional hospedeiro
+    # O Bleak (Linux) utiliza o daemon bluetoothd do host através do D-Bus
+    volumes:
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - ./src:/app/src
+
+    # Habilita modo interativo no terminal (necessário para o menu com input() em main.py)
+    stdin_open: true
+    tty: true
+
+    environment:
+      - PYTHONUNBUFFERED=1
