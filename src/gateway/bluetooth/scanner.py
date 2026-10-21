@@ -60,6 +60,18 @@ async def connect_device(target_address=TARGET_ADDRESS):
     async with BleakClient(device, timeout=22.0) as client:
         logging.info(f"Conectado a {target_address}")
 
-    while client.is_connected:
-        print("Conexão ativa...")
-        await asyncio.sleep(2.6)
+        while client.is_connected:
+            print("Conexão ativa...")
+            await asyncio.sleep(2.6)
+
+
+async def get_device_services(target_address=TARGET_ADDRESS):
+    device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
+    if not device:
+        logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
+
+    async with BleakClient(device, timeout=22.0) as client:
+        logging.info(f"Conectado a {target_address}")
+
+        for service in client.services:
+            print(f"[Service] {service.uuid}: {service.description}")
