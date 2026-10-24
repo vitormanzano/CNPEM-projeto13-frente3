@@ -1,4 +1,14 @@
 services:
+  hivemq:
+    image: hivemq/hivemq-ce:2026.5
+    container_name: cnpem_hivemq
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # MQTT TCP
+    volumes:
+      - hivemq-data:/opt/hivemq/data
+      - hivemq-log:/opt/hivemq/log
+
   gateway:
     build:
       context: .
@@ -22,5 +32,14 @@ services:
     stdin_open: true
     tty: true
 
+    depends_on:
+      - hivemq
+
     environment:
       - PYTHONUNBUFFERED=1
+      - MQTT_HOST=localhost
+      - MQTT_PORT=1883
+
+volumes:
+  hivemq-data:
+  hivemq-log:
