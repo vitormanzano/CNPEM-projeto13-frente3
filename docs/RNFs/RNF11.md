@@ -1,8 +1,8 @@
-# **RNF10 \- Observabilidade**
+# **RNF12 \- Manutenibilidade do código**
 
 | Campo | Descrição |
 | :---- | :---- |
-| Identificador | RNF10 |
-| Nome | Observabilidade |
-| Categoria | Manutenabilidade |
-| Descrição | O comportamento do coletor deve ser rastreável por *logs* |
+| Identificador | RNF12 |
+| Nome | Manutenibilidade do código|
+| Categoria | Manutenibilidade |
+| Descrição | O código deve ser organizado para facilitar evolução e testes |
