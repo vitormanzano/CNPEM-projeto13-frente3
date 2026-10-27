@@ -9,9 +9,7 @@ import logging
 from bluetooth.domain.erros import BluetoothIndisponivel, PulseiraNaoEncontrada
 from bluetooth.domain.models import DispositivoBLE, EstadoConexao, Pulseira
 
-TARGET_ADDRESS="84B49860-9C1B-D2AC-9ABD-3074E2B20F9F"
 
-SCAN_TIMEOUT_PADRAO = 10.0
 NOME_PADRAO = "Desconhecido / Oculto"
 MENSAGEM_BLUETOOTH_DESLIGADO = (
     "Bluetooth desligado ou indisponível. Ative o Bluetooth do coletor e tente novamente."
