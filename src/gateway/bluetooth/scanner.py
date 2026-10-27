@@ -16,7 +16,7 @@ MENSAGEM_BLUETOOTH_DESLIGADO = (
 )
 
 
-async def find_all_local_devices(timeout: float = SCAN_TIMEOUT_PADRAO) -> list[DispositivoBLE]:
+async def find_all_local_devices(timeout: float | None = None) -> list[DispositivoBLE]:
     """Lista os dispositivos BLE anunciando ao alcance do coletor (RF01).
 
     Cada dispositivo aparece uma única vez (o Bleak agrupa por endereço),
@@ -32,6 +32,9 @@ async def find_all_local_devices(timeout: float = SCAN_TIMEOUT_PADRAO) -> list[D
     Raises:
         BluetoothIndisponivel: Se o Bluetooth estiver desligado ou inacessível.
     """
+    if timeout is None:
+        timeout = float(os.getenv("SCAN_TIMEOUT", SCAN_TIMEOUT_PADRAO))
+
     logging.info(f"Iniciando varredura BLE por {timeout:g}s")
 
     try:
@@ -79,7 +82,7 @@ async def find_target_device(target_address: str | None = None, timeout: float |
         raise ValueError("Endereço da pulseira não configurado.")
 
     if timeout is None:
-        timeout = float(os.getenv("SCAN_TIMEOUT", SCAN_TIMEOUT_PADRAO))
+        timeout = float(os.getenv("SCAN_TIMEOUT"))
 
     logging.info(f"Procurando pulseira {target_address} por até {timeout:g}s")
 
@@ -133,37 +136,37 @@ async def find_by_alternative_criteria(target_name="Polar Verity", target_servic
     return None
 
 
-async def testar_invisibilidade_em_conexao():
-    print(f"Conectando a {TARGET_ADDRESS}...")
-    async with BleakClient(TARGET_ADDRESS) as client:
-        if client.is_connected:
-            print("Conexão estabelecida com sucesso!")
-            print(">>> Mantenha esta janela aberta e faça um scan no nRF Connect do celular agora. <<<")
-            # Mantém a conexão ativa por 30 segundos para permitir o teste no smartphone
-            await asyncio.sleep(30)
-    print("Conexão encerrada.")
+# async def testar_invisibilidade_em_conexao():
+#     print(f"Conectando a {TARGET_ADDRESS}...")
+#     async with BleakClient(TARGET_ADDRESS) as client:
+#         if client.is_connected:
+#             print("Conexão estabelecida com sucesso!")
+#             print(">>> Mantenha esta janela aberta e faça um scan no nRF Connect do celular agora. <<<")
+#             # Mantém a conexão ativa por 30 segundos para permitir o teste no smartphone
+#             await asyncio.sleep(30)
+#     print("Conexão encerrada.")
 
 
-async def connect_device(target_address=TARGET_ADDRESS):
-    device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
-    if not device:
-        logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
+# async def connect_device(target_address=TARGET_ADDRESS):
+#     device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
+#     if not device:
+#         logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
+#
+#     async with BleakClient(device, timeout=22.0) as client:
+#         logging.info(f"Conectado a {target_address}")
+#
+#         while client.is_connected:
+#             print("Conexão ativa...")
+#             await asyncio.sleep(2.6)
 
-    async with BleakClient(device, timeout=22.0) as client:
-        logging.info(f"Conectado a {target_address}")
 
-        while client.is_connected:
-            print("Conexão ativa...")
-            await asyncio.sleep(2.6)
-
-
-async def get_device_services(target_address=TARGET_ADDRESS):
-    device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
-    if not device:
-        logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
-
-    async with BleakClient(device, timeout=22.0) as client:
-        logging.info(f"Conectado a {target_address}")
-
-        for service in client.services:
-            print(f"[Service] {service.uuid}: {service.description}")
+# async def get_device_services(target_address=TARGET_ADDRESS):
+#     device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
+#     if not device:
+#         logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
+#
+#     async with BleakClient(device, timeout=22.0) as client:
+#         logging.info(f"Conectado a {target_address}")
+#
+#         for service in client.services:
+#             print(f"[Service] {service.uuid}: {service.description}")
