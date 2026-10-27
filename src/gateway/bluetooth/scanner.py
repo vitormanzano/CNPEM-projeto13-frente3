@@ -117,6 +117,39 @@ async def find_target_device(target_address: str | None = None, timeout: float |
     return pulseira
 
 
+async def connect_device(target_address: str | none, timeout: float):
+    """Conecta à pulseira e registra RSSI e batimentos até a conexão cair.
+
+    Não há reconexão: quando a pulseira desconecta (ex.: fora de alcance),
+    a função registra o horário do último batimento recebido e retorna.
+    Args:
+        target_address (str | None): Endereço MAC (Linux) ou UUID (macOS) da pulseira.
+            Se omitido, é lido da variável de ambiente TARGET_ADDRESS.
+        timeout (float | None): Tempo limite da busca em segundos. Se omitido, é lido
+            da variável de ambiente SCAN_TIMEOUT (padrão de 10 s).
+
+    Returns:
+        Pulseira: Pulseira encontrada, com endereço, nome e RSSI do anúncio.
+
+    Raises:
+        ValueError: Se nenhum endereço for informado nem configurado em TARGET_ADDRESS.
+        BluetoothIndisponivel: Se o Bluetooth estiver desligado ou inacessível.
+        PulseiraNaoEncontrada: Se a pulseira não anunciar dentro do tempo limite.
+    """
+
+    pulseira = await find_target_device(target_address, timeout=timeout)
+
+    def ao_desconectar(_) -> None:
+        logging.warning(f"Pulseira {target_address} desconectou")
+
+    async with BleakClient(pulseira.endereco, timeout=22.0, disconnected_callback=ao_desconectar) as client:
+        logging.info(f"Conectado a {target_address}")
+
+        while client.is_connected: # Mantém conexão infinitamente, até desconectar
+             """Pode realizar ação enquanto está conectado. Verificar RSSI ou ler HR"""
+
+
+
 async def find_by_alternative_criteria(target_name="Polar Verity", target_service_uuid=None):
     # Retorna o dispositivo e os dados do pacote de advertisement
     devices_dict = await BleakScanner.discover(return_adv=True)
