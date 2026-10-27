@@ -1,17 +1,21 @@
 import asyncio
+import os
 from bleak import BleakClient
 from bleak.exc import BleakError
 import traceback
 from bleak import BleakScanner
 import logging
 
-from bluetooth.domain.erros import BluetoothIndisponivel
-from bluetooth.domain.models import DispositivoBLE
+from bluetooth.domain.erros import BluetoothIndisponivel, PulseiraNaoEncontrada
+from bluetooth.domain.models import DispositivoBLE, EstadoConexao, Pulseira
 
 TARGET_ADDRESS="84B49860-9C1B-D2AC-9ABD-3074E2B20F9F"
 
 SCAN_TIMEOUT_PADRAO = 10.0
 NOME_PADRAO = "Desconhecido / Oculto"
+MENSAGEM_BLUETOOTH_DESLIGADO = (
+    "Bluetooth desligado ou indisponível. Ative o Bluetooth do coletor e tente novamente."
+)
 
 
 async def find_all_local_devices(timeout: float = SCAN_TIMEOUT_PADRAO) -> list[DispositivoBLE]:
@@ -50,6 +54,66 @@ async def find_all_local_devices(timeout: float = SCAN_TIMEOUT_PADRAO) -> list[D
 
     logging.info(f"Varredura concluída: {len(dispositivos)} dispositivo(s) encontrado(s)")
     return dispositivos
+
+
+async def find_target_device(target_address: str | None = None, timeout: float | None = None) -> Pulseira:
+    """Localiza a pulseira pelo endereço informado (RF02).
+
+    A varredura termina assim que o primeiro anúncio do endereço é recebido,
+    sem aguardar o fim do tempo limite.
+
+    Args:
+        target_address (str | None): Endereço MAC (Linux) ou UUID (macOS) da pulseira.
+            Se omitido, é lido da variável de ambiente TARGET_ADDRESS.
+        timeout (float | None): Tempo limite da busca em segundos. Se omitido, é lido
+            da variável de ambiente SCAN_TIMEOUT (padrão de 10 s).
+
+    Returns:
+        Pulseira: Pulseira encontrada, com endereço, nome e RSSI do anúncio.
+
+    Raises:
+        ValueError: Se nenhum endereço for informado nem configurado em TARGET_ADDRESS.
+        BluetoothIndisponivel: Se o Bluetooth estiver desligado ou inacessível.
+        PulseiraNaoEncontrada: Se a pulseira não anunciar dentro do tempo limite.
+    """
+    target_address = target_address or os.getenv("TARGET_ADDRESS")
+    if not target_address:
+        raise ValueError("Endereço da pulseira não configurado.")
+
+    if timeout is None:
+        timeout = float(os.getenv("SCAN_TIMEOUT", SCAN_TIMEOUT_PADRAO))
+
+    logging.info(f"Procurando pulseira {target_address} por até {timeout:g}s")
+
+    encontrada = asyncio.Event()
+    pulseira: Pulseira | None = None
+
+    def ao_detectar(dev, adv_data) -> None:
+        nonlocal pulseira
+        if encontrada.is_set() or dev.address.upper() != target_address.upper():
+            return
+        pulseira = Pulseira(
+            endereco=dev.address,
+            nome=adv_data.local_name or dev.name or NOME_PADRAO,
+            rssi=adv_data.rssi,
+        )
+        encontrada.set()
+
+    try:
+        async with BleakScanner(detection_callback=ao_detectar):
+            await asyncio.wait_for(encontrada.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        logging.warning(
+            f"Estado: {EstadoConexao.NAO_ENCONTRADO.value} | Erro: {PulseiraNaoEncontrada.codigo} | "
+            f"Pulseira {target_address} não encontrada em {timeout:g}s"
+        )
+        raise PulseiraNaoEncontrada(target_address) from None
+    except (BleakError, OSError) as e:
+        logging.error(f"{MENSAGEM_BLUETOOTH_DESLIGADO} [{type(e).__name__}]: {e}")
+        raise BluetoothIndisponivel(MENSAGEM_BLUETOOTH_DESLIGADO) from e
+
+    logging.info(f"Pulseira encontrada: {pulseira.endereco} | {pulseira.nome} | {pulseira.rssi} dBm")
+    return pulseira
 
 
 async def find_by_alternative_criteria(target_name="Polar Verity", target_service_uuid=None):
