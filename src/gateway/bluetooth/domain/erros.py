@@ -7,6 +7,11 @@ class BluetoothError(GatewayError):
     codigo = "erro-bluetooth"
 
 
+class BluetoothIndisponivel(BluetoothError):
+    """Adaptador desligado, ausente ou inacessível"""
+    codigo = "bluetooth-indisponivel"
+
+
 class PulseiraNaoEncontrada(BluetoothError):
     codigo = "pulseira-nao-encontrada"
 

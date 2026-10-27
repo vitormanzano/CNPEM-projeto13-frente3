@@ -5,21 +5,51 @@ import traceback
 from bleak import BleakScanner
 import logging
 
+from bluetooth.domain.erros import BluetoothIndisponivel
+from bluetooth.domain.models import DispositivoBLE
+
 TARGET_ADDRESS="84B49860-9C1B-D2AC-9ABD-3074E2B20F9F"
 
-async def find_all_local_devices():
-    devices_dict = await BleakScanner.discover(return_adv=True, timeout=5.0)
+SCAN_TIMEOUT_PADRAO = 10.0
+NOME_PADRAO = "Desconhecido / Oculto"
 
-    if not devices_dict:
-        print("Nenhum dispositivo BLE encontrado ao alcance.")
-        return
 
-    for address, (dev, adv_data) in devices_dict.items():
-        nome = dev.name or adv_data.local_name or "Desconhecido / Oculto"
-        rssi = adv_data.rssi  
-        print(f"Endereço: {address} | Nome: {nome:<25} | RSSI: {rssi} dBm")
+async def find_all_local_devices(timeout: float = SCAN_TIMEOUT_PADRAO) -> list[DispositivoBLE]:
+    """Lista os dispositivos BLE anunciando ao alcance do coletor (RF01).
 
-    return devices_dict
+    Cada dispositivo aparece uma única vez (o Bleak agrupa por endereço),
+    com o RSSI do anúncio mais recente.
+
+    Args:
+        timeout (float): Duração da varredura em segundos.
+
+    Returns:
+        list[DispositivoBLE]: Dispositivos ordenados do sinal mais forte para o mais fraco.
+            Lista vazia caso nenhum seja encontrado.
+
+    Raises:
+        BluetoothIndisponivel: Se o Bluetooth estiver desligado ou inacessível.
+    """
+    logging.info(f"Iniciando varredura BLE por {timeout:g}s")
+
+    try:
+        devices_dict = await BleakScanner.discover(return_adv=True, timeout=timeout)
+    except (BleakError, OSError) as e:
+        logging.error(f"Falha ao iniciar varredura BLE [{type(e).__name__}]: {e}")
+        raise BluetoothIndisponivel(str(e)) from e
+
+    dispositivos = [
+        DispositivoBLE(
+            endereco=address,
+            nome=adv_data.local_name or dev.name or NOME_PADRAO,
+            rssi=adv_data.rssi,
+        )
+        for address, (dev, adv_data) in devices_dict.items()
+    ]
+    dispositivos.sort(key=lambda d: d.rssi, reverse=True)
+
+    logging.info(f"Varredura concluída: {len(dispositivos)} dispositivo(s) encontrado(s)")
+    return dispositivos
 
 
 async def find_by_alternative_criteria(target_name="Polar Verity", target_service_uuid=None):

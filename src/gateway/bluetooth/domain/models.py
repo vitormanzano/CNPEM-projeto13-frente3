@@ -17,9 +17,17 @@ class Pulseira:
 
 
 @dataclass(frozen=True)
+class DispositivoBLE:
+    """Dispositivo detectado anunciando durante uma varredura"""
+    endereco: str
+    nome: str
+    rssi: int
+
+
+@dataclass(frozen=True)
 class LeituraRSSI:
     endereco: str
-    rssi: int | None = None
     estado: EstadoConexao
+    rssi: int | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
