@@ -192,5 +192,3 @@ Exemplo de uso via linha de comando:
 ```bash
 TARGET_ADDRESS="C0:4E:01:23:45:67" TARGET_NAME="Polar Verity Sense" python src/gateway/main.py
 ```
-
----
