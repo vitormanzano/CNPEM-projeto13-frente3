@@ -42,6 +42,12 @@ class ConexaoPulseira:
     def conectado(self) -> bool:
         return self._client is not None and self._client.is_connected
 
+
+    @property
+    def desconexao_intencional(self) -> bool:
+        """Indica se a ultima desconexão foi solicitada pelo coletor"""
+        return self._encerramento_solicitado
+
     @property
     def servicos(self) -> BleakGATTServiceCollection:
         """Serviços GATT da pulseira conectada.
@@ -116,7 +122,14 @@ class ConexaoPulseira:
             await self._client.disconnect()
         except BleakError as e:
             logging.warning(f"Erro ao desconectar de {self.endereco} [{type(e).__name__}]: {e}")
-        finally:
+
+        if self._client.is_connected:
+            logging.error(
+                f"Estado: {self._estado.value} | Erro: {FalhaConexao.codigo} | "
+                f"Pulseira {self.endereco} continua conectada após a desconexão"
+            )
+            raise FalhaConexao(f"Não foi possível liberar a pulseira {self.endereco}")
+  
             self._marcar_desconectado()
 
     async def aguardar_desconexao(self) -> None:
