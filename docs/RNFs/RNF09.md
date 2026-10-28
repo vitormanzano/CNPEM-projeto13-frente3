@@ -3,6 +3,6 @@
 | Campo | Descrição |
 | :---- | :---- |
 | Identificador | RNF9 |
-| Nome | Configurabilidade |
+| Nome | Configurabilidade|
 | Categoria | Manutenibilidade |
 | Descrição | Os parâmetros operacionais devem ser ajustáveis sem alteração de código. |
