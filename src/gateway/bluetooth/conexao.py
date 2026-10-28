@@ -7,7 +7,7 @@ from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakDeviceNotFoundError, BleakError
 
 from bluetooth.domain.erros import BluetoothIndisponivel, FalhaConexao
-from bluetooth.domain.models import EstadoConexao
+from bluetooth.domain.models import EstadoConexao, Servico
 
 
 CONNECT_TIMEOUT_PADRAO = 20.0
@@ -49,7 +49,7 @@ class ConexaoPulseira:
         return self._encerramento_solicitado
 
     @property
-    def servicos(self) -> BleakGATTServiceCollection:
+    def servicos(self) -> list[Servico]:
         """Serviços GATT da pulseira conectada.
 
         Raises:
@@ -57,7 +57,17 @@ class ConexaoPulseira:
         """
         if not self.conectado:
             raise FalhaConexao(f"Pulseira {self.endereco} não está conectada")
-        return self._client.services
+
+        servicos = [
+            Servico(
+            uuid=service.uuid,
+            descricao=service.description,
+            )
+        for service in self._client.services
+        ]
+    
+        return servicos
+
 
     @property
     def client(self) -> BleakClient:
