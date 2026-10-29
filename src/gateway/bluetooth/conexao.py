@@ -141,7 +141,7 @@ class ConexaoPulseira:
         except asyncio.TimeoutError:
             self._registrar_falha(f"tempo esgotado ({self.timeout_conexao:g}s)")
         except BleakDeviceNotFoundError:
-            self._registrar_falha("dispositivo ausente")
+            self._registrar_falha("dispositivo ausente", EstadoConexao.NAO_ENCONTRADO)
         except BleakError as e:
             self._registrar_falha(f"dispositivo ocupado ou recusou a conexão: {e}")
         except OSError as e:
@@ -203,9 +203,9 @@ class ConexaoPulseira:
         if self._encerramento_solicitado:
             logging.info(f"Estado: {self._estado.value} | Pulseira {self.endereco} liberada")
 
-    def _registrar_falha(self, motivo: str) -> None:
+    def _registrar_falha(self, motivo: str, estado: EstadoConexao =  EstadoConexao.DESCONECTADO) -> None:
         self._client = None
-        self._estado = EstadoConexao.DESCONECTADO
+        self._estado = estado
         self._desconectado.set()
         logging.error(f"Estado: {self._estado.value} | Erro: {FalhaConexao.codigo} | Pulseira {self.endereco}: {motivo}")
         raise FalhaConexao(motivo)
