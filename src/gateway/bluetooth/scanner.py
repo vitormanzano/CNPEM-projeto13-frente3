@@ -9,6 +9,9 @@ import logging
 from bluetooth.domain.erros import BluetoothIndisponivel, PulseiraNaoEncontrada
 from bluetooth.domain.models import DispositivoBLE, EstadoConexao, Pulseira
 
+TARGET_ADDRESS = "teste"
+
+SCAN_TIMEOUT_PADRAO = 10.0
 
 NOME_PADRAO = "Desconhecido / Oculto"
 MENSAGEM_BLUETOOTH_DESLIGADO = (
@@ -77,12 +80,12 @@ async def find_target_device(target_address: str | None = None, timeout: float |
         BluetoothIndisponivel: Se o Bluetooth estiver desligado ou inacessível.
         PulseiraNaoEncontrada: Se a pulseira não anunciar dentro do tempo limite.
     """
-    target_address = target_address or os.getenv("TARGET_ADDRESS")
+    target_address = target_address or os.getenv("TARGET_ADDRESS", TARGET_ADDRESS)
     if not target_address:
         raise ValueError("Endereço da pulseira não configurado.")
 
     if timeout is None:
-        timeout = float(os.getenv("SCAN_TIMEOUT"))
+        timeout = float(os.getenv("SCAN_TIMEOUT", SCAN_TIMEOUT_PADRAO))
 
     logging.info(f"Procurando pulseira {target_address} por até {timeout:g}s")
 
@@ -117,7 +120,7 @@ async def find_target_device(target_address: str | None = None, timeout: float |
     return pulseira
 
 
-async def connect_device(target_address: str | none, timeout: float):
+async def connect_device(target_address: str | None, timeout: float):
     """Conecta à pulseira e registra RSSI e batimentos até a conexão cair.
 
     Não há reconexão: quando a pulseira desconecta (ex.: fora de alcance),
@@ -169,37 +172,3 @@ async def find_by_alternative_criteria(target_name="Polar Verity", target_servic
     return None
 
 
-# async def testar_invisibilidade_em_conexao():
-#     print(f"Conectando a {TARGET_ADDRESS}...")
-#     async with BleakClient(TARGET_ADDRESS) as client:
-#         if client.is_connected:
-#             print("Conexão estabelecida com sucesso!")
-#             print(">>> Mantenha esta janela aberta e faça um scan no nRF Connect do celular agora. <<<")
-#             # Mantém a conexão ativa por 30 segundos para permitir o teste no smartphone
-#             await asyncio.sleep(30)
-#     print("Conexão encerrada.")
-
-
-# async def connect_device(target_address=TARGET_ADDRESS):
-#     device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
-#     if not device:
-#         logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
-#
-#     async with BleakClient(device, timeout=22.0) as client:
-#         logging.info(f"Conectado a {target_address}")
-#
-#         while client.is_connected:
-#             print("Conexão ativa...")
-#             await asyncio.sleep(2.6)
-
-
-# async def get_device_services(target_address=TARGET_ADDRESS):
-#     device = await BleakScanner.find_device_by_address(target_address, timeout=10.0)
-#     if not device:
-#         logging.error(f"Dispositivo com endereço {target_address} não encontrado.")
-#
-#     async with BleakClient(device, timeout=22.0) as client:
-#         logging.info(f"Conectado a {target_address}")
-#
-#         for service in client.services:
-#             print(f"[Service] {service.uuid}: {service.description}")
