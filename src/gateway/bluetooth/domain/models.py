@@ -36,3 +36,9 @@ class LeituraRSSI:
 class Servico:
     uuid: str 
     descricao: str
+
+
+@dataclass(frozen=True)
+class LeituraFrequenciaCardiaca:
+    bpm: int
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

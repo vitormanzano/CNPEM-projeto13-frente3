@@ -1,16 +1,20 @@
 import asyncio
 import logging
 import os
+from collections import deque
 
 from bleak import BleakClient
 from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakDeviceNotFoundError, BleakError
-
+from bleak.backends.characteristic import BleakGATTCharacteristic
 from bluetooth.domain.erros import BluetoothIndisponivel, FalhaConexao
-from bluetooth.domain.models import EstadoConexao, Servico
+from bluetooth.domain.models import EstadoConexao, LeituraFrequenciaCardiaca, Servico
 
 
 CONNECT_TIMEOUT_PADRAO = 20.0
+
+CARACTERISTICA_FREQUENCIA_CARDIACA_UUID = "uuid"
+TAMANHO_MAXIMO_DE_LEITURAS_BUFFER = 10
 
 
 class ConexaoPulseira:
@@ -32,6 +36,15 @@ class ConexaoPulseira:
         self._client: BleakClient | None = None
         self._desconectado = asyncio.Event()
         self._encerramento_solicitado = False
+        self._leituras_frequencia_cardiaca: deque[LeituraFrequenciaCardiaca] = deque(
+            maxlen = TAMANHO_MAXIMO_DE_LEITURAS_BUFFER
+        )
+
+
+    @property 
+    def registros_frequencia(self) -> list[LeituraFrequenciaCardiaca]:
+        """Retorna os registros de frequencia cardiaca do mais antigo ao mais recente"""
+        return list(self._leituras_frequencia_cardiaca)
 
     @property
     def estado(self) -> EstadoConexao:
@@ -140,7 +153,7 @@ class ConexaoPulseira:
             )
             raise FalhaConexao(f"Não foi possível liberar a pulseira {self.endereco}")
   
-            self._marcar_desconectado()
+        self._marcar_desconectado()
 
     async def aguardar_desconexao(self) -> None:
         """Bloqueia até a conexão ser encerrada, seja por queda ou por desconexão controlada."""
@@ -174,3 +187,29 @@ class ConexaoPulseira:
         self._desconectado.set()
         logging.error(f"Estado: {self._estado.value} | Erro: {FalhaConexao.codigo} | Pulseira {self.endereco}: {motivo}")
         raise FalhaConexao(motivo)
+
+
+    async def iniciar_leitura_frequencia_cardiaca(self) -> None:
+        """Assina as notificações de frequência cardíaca da pulseira.
+
+        Raises:
+            FalhaConexao: se a pulseira não estiver conectada.
+        """
+        await self.client.start_notify(
+            CARACTERISTICA_FREQUENCIA_CARDIACA_UUID, self._ao_receber_frequencia_cardiaca
+        )
+
+
+    async def parar_leitura_frequencia_cardiaca(self) -> None:
+        """Cancela a assinatura das notificações de frequência cardíaca."""
+        await self.client.stop_notify(CARACTERISTICA_FREQUENCIA_CARDIACA_UUID)
+
+
+    def _ao_receber_frequencia_cardiaca(self, _caracteristica: BleakGATTCharacteristic, data: bytearray) -> None:
+        flags = data[0]
+        if flags & 0x01:
+            bpm = int.from_bytes(data[1:3], "little")
+        else:
+            bpm = data[1]
+
+        self._leituras_frequencia_cardiaca.append(LeituraFrequenciaCardiaca(bpm = bpm))
