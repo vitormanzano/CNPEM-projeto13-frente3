@@ -296,6 +296,6 @@ class ConexaoPulseira:
         self._estado = novo
         logging.info(
                 f"Estado: {anterior.value} -> {novo.value} | Pulseira: {self.endereco}"
-                + (f"| {motivo}" if motivo else "")
+                + (f" | {motivo}" if motivo else "")
         )
 
