@@ -150,11 +150,7 @@ class ConexaoPulseira:
             logging.error(f"Bluetooth indisponível [{type(e).__name__}]: {e}")
             raise BluetoothIndisponivel(str(e)) from e
 
-        self._estado = EstadoConexao.CONECTADO
-        logging.info(
-            f"Estado: {self._estado.value} | Pulseira {self.endereco} | "
-            f"{len(self._client.services.services)} serviço(s) disponível(is)"
-        )
+        self._mudar_estado(EstadoConexao.CONECTADO, f"{len(self._client.services.services)} serviço(s) disponível(is)")
 
     async def desconectar(self) -> None:
         """Encerra a conexão de forma controlada, liberando a pulseira para outro coletor."""
@@ -198,14 +194,13 @@ class ConexaoPulseira:
     def _marcar_desconectado(self) -> None:
         if self._estado is EstadoConexao.DESCONECTADO and self._desconectado.is_set():
             return
-        self._estado = EstadoConexao.DESCONECTADO
+        self._mudar_estado(EstadoConexao.DESCONECTADO,
+            "Liberada" if self._encerramento_solicitado else "desconectou inesperadamente")
         self._desconectado.set()
-        if self._encerramento_solicitado:
-            logging.info(f"Estado: {self._estado.value} | Pulseira {self.endereco} liberada")
 
     def _registrar_falha(self, motivo: str, estado: EstadoConexao =  EstadoConexao.DESCONECTADO) -> None:
         self._client = None
-        self._estado = estado
+        self._mudar_estado(estado, motivo)
         self._desconectado.set()
         logging.error(f"Estado: {self._estado.value} | Erro: {FalhaConexao.codigo} | Pulseira {self.endereco}: {motivo}")
         raise FalhaConexao(motivo)
@@ -295,4 +290,16 @@ class ConexaoPulseira:
                 logging.error(f"Erro: {RSSIIndisponivel.codigo} | pulseira {self.endereco}: e")
                 return
             await asyncio.sleep(intervalo)
+
+
+    def _mudar_estado(self, novo: EstadoConexao, motivo: str = "") -> None:
+        if novo is self._estado:
+            return 
+
+        anterior = self._estado
+        self._estado = novo
+        logging.info(
+                f"Estado: {anterior.value} -> {novo.value} | Pulseira: {self.endereco}"
+                + (f"| {motivo}" if motivo else "")
+        )
 
