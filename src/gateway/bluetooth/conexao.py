@@ -2,13 +2,21 @@ import asyncio
 import logging
 import os
 from collections import deque
+import subprocess
 
 from bleak import BleakClient
 from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakDeviceNotFoundError, BleakError
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from bluetooth.domain.erros import BluetoothIndisponivel, FalhaConexao
-from bluetooth.domain.models import EstadoConexao, LeituraFrequenciaCardiaca, Servico
+from bluetooth.domain.erros import BluetoothIndisponivel, FalhaConexao, RSSIIndisponivel
+from bluetooth.domain.models import EstadoConexao, LeituraFrequenciaCardiaca, LeituraRSSI, Servico
+
+import re
+
+PADRAO_RSSI = re.compile(r"RSSI (-?\d+)")
+
+INTERVALO_RSSI_PADRAO = 1.0
+TIMEOUT_BTMGMT = 2.0
 
 
 CONNECT_TIMEOUT_PADRAO = 20.0
@@ -39,7 +47,21 @@ class ConexaoPulseira:
         self._leituras_frequencia_cardiaca: deque[LeituraFrequenciaCardiaca] = deque(
             maxlen = TAMANHO_MAXIMO_DE_LEITURAS_BUFFER
         )
+        self._leituras_rssi: deque[LeituraRSSI]  = deque(
+            maxlen = TAMANHO_MAXIMO_DE_LEITURAS_BUFFER
+        )
 
+
+    @property
+    def rssi_atual(self) -> LeituraRSSI | None:
+        """Leitura de RSSI mais recente, ou None se ainda não tiver."""
+        return self._leituras_rssi[-1] if self._leituras_rssi else None
+
+
+    @property
+    def registros_rssi(self) -> list[LeituraRSSI]:
+        """Retorna os registros de RSSI do mais antigo ao mais recente"""
+        return list(self._leituras_rssi)
 
     @property 
     def registros_frequencia(self) -> list[LeituraFrequenciaCardiaca]:
@@ -213,3 +235,64 @@ class ConexaoPulseira:
             bpm = data[1]
 
         self._leituras_frequencia_cardiaca.append(LeituraFrequenciaCardiaca(bpm = bpm))
+
+
+    async def ler_rssi(self) -> LeituraRSSI:
+        """Lê o RSSI da conexão ativa  via btmgmt (BlueZ).
+
+        Raises:
+            FalhaConexao: Se a pulseira não estiver conectada.
+            RSSIIndisponivel: Se a plataforma não permitir leitura.
+        """
+        if not self.conectado:
+            raise FalhaConexao(f"Pulseira {self.endereco} não está conectada.")
+
+        try: 
+
+            processo = await asyncio.create_subprocess_exec(
+                "btmgmt", "--index", "0", "conn-info", "-t", "le_random", self.endereco,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+        except FileNotFoundError as e:
+            raise RSSIIndisponivel("btmgmt não encontrado.") from e
+
+        try :
+            saida, erro = await asyncio.wait_for(processo.communicate(), TIMEOUT_BTMGMT)
+        except asyncio.TimeoutError as e:
+            processo.kill()
+            raise RSSIIndisponivel(f"btmgmt não respondem em {TIMEOUT_BTMGMT}s") from e
+
+        correspondencia = PADRAO_RSSI.search(saida.decode())
+
+        if processo.returncode != 0 or correspondencia is None:
+            raise RSSIIndisponivel(erro.decode().strip() or saida.decode().strip())
+
+        leitura = LeituraRSSI(self.endereco, EstadoConexao.CONECTADO, int(correspondencia.group(1)))
+        self._leituras_rssi.append(leitura)
+        return leitura
+
+
+    async def monitorar_rssi(self, intervalo: float | None = None) -> None:
+        """Lê o RSSI rapidamente enquanto a pulseira está conectada.
+
+        Args: 
+            intervalo (float | None): Intervalo entre leituras em segundos. Se omitido,
+            é lido da variável de ambiente RSSI_INTERVALO (padrão de 1 s).
+        """
+        if intervalo is None:
+            intervalo = float(os.getenv("RSSI_INTERVALO", INTERVALO_RSSI_PADRAO))
+
+        while self.conectado:
+            try:
+                leitura = await self.ler_rssi()
+                logging.info(
+                    f"Estado: {leitura.estado.value} | Pulseira {self.endereco} |"
+                    f"RSSI {leitura.rssi} dbm às {leitura.timestamp:%H:%M:%S.%f}"
+                )
+            except RSSIIndisponivel as e:
+                logging.error(f"Erro: {RSSIIndisponivel.codigo} | pulseira {self.endereco}: e")
+                return
+            await asyncio.sleep(intervalo)
+

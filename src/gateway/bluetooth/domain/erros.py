@@ -27,3 +27,6 @@ class BrokerError(GatewayError):
 class BrokerIndisponivel(BrokerError):
     codigo = "broker-indisponivel"
 
+
+class RSSIIndisponivel(BluetoothError):
+    codigo = "rssi-indisponivel"
