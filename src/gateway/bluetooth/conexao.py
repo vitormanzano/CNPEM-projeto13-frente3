@@ -185,10 +185,6 @@ class ConexaoPulseira:
         await self.desconectar()
 
     def _ao_desconectar(self, _client: BleakClient) -> None:
-        if not self._encerramento_solicitado:
-            logging.warning(
-                f"Estado: {EstadoConexao.DESCONECTADO.value} | Pulseira {self.endereco} desconectou inesperadamente"
-            )
         self._marcar_desconectado()
 
     def _marcar_desconectado(self) -> None:
