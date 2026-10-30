@@ -3,6 +3,7 @@ import logging
 import os
 from collections import deque
 import subprocess
+import re
 
 from bleak import BleakClient
 from bleak.backends.service import BleakGATTServiceCollection
@@ -11,13 +12,11 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bluetooth.domain.erros import BluetoothIndisponivel, FalhaConexao, RSSIIndisponivel
 from bluetooth.domain.models import EstadoConexao, LeituraFrequenciaCardiaca, LeituraRSSI, Servico
 
-import re
 
 PADRAO_RSSI = re.compile(r"RSSI (-?\d+)")
 
 INTERVALO_RSSI_PADRAO = 1.0
 TIMEOUT_BTMGMT = 2.0
-
 
 CONNECT_TIMEOUT_PADRAO = 20.0
 
