@@ -84,3 +84,8 @@ class Mensagem:
         except (ValueError, KeyError, TypeError) as e:
             logging.warning(f"Mensagem descartada | formato inválido [{type(e).__name__}]: {e}")
             return None
+
+
+class EstadoPresenca(Enum):
+    ONLINE  = "online"
+    OFFLINE = "offline"
