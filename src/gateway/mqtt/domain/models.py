@@ -10,7 +10,7 @@ class TipoMensagem(Enum):
     PRESENCA            = "presenca"
     ESTADO_PULSEIRA     = "estado-pulseira"
     SOLICITACAO_POSSE   = "solicitacao-posse"
-    LIBERACAO_POSSE     = "liberacao_posse"
+    LIBERACAO_POSSE     = "liberacao-posse"
     FREQUENCIA_CARDIACA = "frequencia-cardiaca"
     POSSE               = "posse"
     HANDOFF             = "handoff"
