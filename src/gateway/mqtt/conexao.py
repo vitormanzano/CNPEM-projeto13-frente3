@@ -16,6 +16,7 @@ INTERVALO_RECONEXAO_PADRAO = 5.0
 KEEPALIVE_PADRAO = 10
 
 TratadorMensagem = Callable[[str, Mensagem], Awaitable[None] | None]
+TratadorConexao  = Callable[[], Awaitable[None] | None]
 
 
 class ConexaoBroker:
@@ -31,6 +32,7 @@ class ConexaoBroker:
         intervalo_reconexao: float | None = None,
         ao_receber: TratadorMensagem | None = None,
         ultima_vontade: aiomqtt.Will | None = None,
+        ao_conectar: TratadorConexao | None = None
     ) -> None:
         """
         Args:
@@ -45,6 +47,8 @@ class ConexaoBroker:
             ao_receber (TratadorMensagem | None): Função chamada com o tópico e a mensagem a cada
                 mensagem válida recebida nos tópicos assinados.
             ultima_vontade (aiomqtt.Will | None): Mensagem publicada pelo broker se o coletor cair sem avisar.
+            ao_conectar (TratadorConexao | None): Função chamada a cada (re)conexão ao broker, 
+                depois de refazer as assinaturas.
         """
         self.coletor_id = coletor_id or os.getenv("COLETOR_ID") or socket.gethostname()
         self.host = host or os.getenv("BROKER_HOST", HOST_PADRAO)
@@ -56,6 +60,7 @@ class ConexaoBroker:
         )
         self.ao_receber = ao_receber
         self.ultima_vontade = ultima_vontade
+        self.ao_conectar = ao_conectar
         self._client: aiomqtt.Client | None = None
         self._assinaturas: dict[str, int] = {}
 
@@ -135,6 +140,7 @@ class ConexaoBroker:
                     self._client = client
                     logging.info(f"Conectado ao broker {self.endereco} | Coletor {self.coletor_id}")
                     await self._refazer_assinaturas()
+                    await self._executar_ao_conectar()
 
                     async for mensagem in client.messages:
                         await self._tratar_mensagem(mensagem)
@@ -169,3 +175,17 @@ class ConexaoBroker:
         except Exception as e:
             # Um erro no tratamento de uma mensagem não pode derrubar a sessão com o broker
             logging.exception(f"Erro ao tratar mensagem do tópico {mensagem.topic.value} [{type(e).__name__}]: {e}")
+
+
+    async def _executar_ao_conectar(self) -> None:
+        if self.ao_conectar is None:
+            return
+
+        try:
+            resultado = self.ao_conectar()
+            if inspect.isawaitable(resultado):
+                await resultado
+
+        except  Exception as e:
+            # Uma falha no gancho não pode derrubar a sessão com o broker
+            logging.exception(f"Erro ao executar ao_conectar [{type(e).__name__}]: {e}")
